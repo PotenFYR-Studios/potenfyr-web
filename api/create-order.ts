@@ -1,12 +1,26 @@
 // api/create-order.ts
 import Razorpay from 'razorpay';
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
-});
-
 export default async function handler(req: any, res: any) {
+  // Debug logging
+  console.log("Razorpay Key Check:", {
+    keyId: process.env.RAZORPAY_KEY_ID ? "Present" : "MISSING",
+    secret: process.env.RAZORPAY_KEY_SECRET ? "Present" : "MISSING",
+    keyIdValue: process.env.RAZORPAY_KEY_ID?.substring(0, 12) + "...",
+  });
+
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    return res.status(500).json({
+      success: false,
+      error: "Razorpay keys are not configured on Vercel"
+    });
+  }
+
+  const razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+  });
+
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
@@ -14,12 +28,8 @@ export default async function handler(req: any, res: any) {
   try {
     const { amount = 499 } = req.body;
 
-    if (!amount || amount < 10) {
-      return res.status(400).json({ success: false, error: 'Minimum amount is ₹10' });
-    }
-
     const options = {
-      amount: Math.round(amount * 100), // paise
+      amount: Math.round(amount * 100),
       currency: "INR",
       receipt: `donate_${Date.now()}`,
     };
@@ -35,7 +45,7 @@ export default async function handler(req: any, res: any) {
     console.error("Razorpay Error:", error);
     return res.status(500).json({
       success: false,
-      error: error.message || 'Internal server error'
+      error: error.message || 'Failed to create order'
     });
   }
 }
